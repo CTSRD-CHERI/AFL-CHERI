@@ -94,13 +94,16 @@ bool AFLCoverage::runOnModule(Module &M) {
   /* Get globals for the SHM region and the previous location. Note that
      __afl_prev_loc is thread-local. */
 
+  // FIXME: Address space 200 should come from the DataLayout, but the changes
+  // to the DataLayout to support this are only in the CHERI tree, so the fix
+  // for this would break the build with non-CHERI compilers anyway...
   GlobalVariable *AFLMapPtr =
-      new GlobalVariable(M, PointerType::get(Int8Ty, 0), false,
+      new GlobalVariable(M, PointerType::get(Int8Ty, 200), false,
                          GlobalValue::ExternalLinkage, 0, "__afl_area_ptr");
 
   GlobalVariable *AFLPrevLoc = new GlobalVariable(
       M, Int32Ty, false, GlobalValue::ExternalLinkage, 0, "__afl_prev_loc",
-      0, GlobalVariable::GeneralDynamicTLSModel, 0, false);
+      0, GlobalVariable::InitialExecTLSModel, 0, false);
 
   /* Instrument all the things! */
 
