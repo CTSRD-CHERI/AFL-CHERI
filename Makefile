@@ -27,6 +27,7 @@ MISC_PATH   = $(PREFIX)/share/afl
 PROGS       = afl-gcc afl-fuzz afl-showmap afl-tmin afl-gotcpu afl-analyze
 SH_PROGS    = afl-plot afl-cmin afl-whatsup
 
+XCC        ?= $(CC)
 CFLAGS     ?= -O3 -funroll-loops
 CFLAGS     += -Wall -D_FORTIFY_SOURCE=2 -g -Wno-pointer-sign \
 	      -DAFL_PATH=\"$(HELPER_PATH)\" -DDOC_PATH=\"$(DOC_PATH)\" \
@@ -70,7 +71,7 @@ afl-as: afl-as.c afl-as.h $(COMM_HDR) | test_x86
 	ln -sf afl-as as
 
 afl-fuzz: afl-fuzz.c $(COMM_HDR) | test_x86
-	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
+	$(XCC) $(CFLAGS) $(XCFLAGS) $@.c -o $@ $(LDFLAGS)
 
 afl-showmap: afl-showmap.c $(COMM_HDR) | test_x86
 	$(CC) $(CFLAGS) $@.c -o $@ $(LDFLAGS)

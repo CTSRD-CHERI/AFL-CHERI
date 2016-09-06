@@ -23,6 +23,7 @@ BIN_PATH     = $(PREFIX)/bin
 VERSION     = $(shell grep '^\#define VERSION ' ../config.h | cut -d '"' -f2)
 
 LLVM_CONFIG ?= llvm-config
+XCC         ?= ${CC}
 
 CFLAGS      ?= -O3 -funroll-loops
 CFLAGS      += -Wall -D_FORTIFY_SOURCE=2 -g -Wno-pointer-sign \
@@ -38,6 +39,7 @@ CXXFLAGS    += -Wall -D_FORTIFY_SOURCE=2 -g -Wno-pointer-sign \
 
 CLANG_CFL    = `$(LLVM_CONFIG) --cxxflags` -fno-rtti -fpic $(CXXFLAGS)
 CLANG_LFL    = `$(LLVM_CONFIG) --ldflags` $(LDFLAGS)
+CLANG_PATH   = $(shell $(LLVM_CONFIG) --bindir)
 
 # User teor2345 reports that this is required to make things work on MacOS X.
 
@@ -76,26 +78,26 @@ endif
 	@echo "[+] All set and ready to build."
 
 ../afl-clang-fast: afl-clang-fast.c | test_deps
-	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+	$(CC) $(CFLAGS) -DCLANG_PATH="\"$(CLANG_PATH)/\"" $< -o $@ $(LDFLAGS)
 	ln -sf afl-clang-fast ../afl-clang-fast++
 
 ../afl-llvm-pass.so: afl-llvm-pass.so.cc | test_deps
 	$(CXX) $(CLANG_CFL) -shared $< -o $@ $(CLANG_LFL)
 
 ../afl-llvm-rt.o: afl-llvm-rt.o.c | test_deps
-	$(CC) $(CFLAGS) -fPIC -c $< -o $@
+	$(XCC) $(CFLAGS) $(XCCFLAGS) -fPIC -c $< -o $@
 
 ../afl-llvm-rt-32.o: afl-llvm-rt.o.c | test_deps
 	@printf "[*] Building 32-bit variant of the runtime (-m32)... "
-	@$(CC) $(CFLAGS) -m32 -fPIC -c $< -o $@ 2>/dev/null; if [ "$$?" = "0" ]; then echo "success!"; else echo "failed (that's fine)"; fi
+	@$(XCC) $(CFLAGS) $(XCCFLAGS) -m32 -fPIC -c $< -o $@ 2>/dev/null; if [ "$$?" = "0" ]; then echo "success!"; else echo "failed (that's fine)"; fi
 
 ../afl-llvm-rt-64.o: afl-llvm-rt.o.c | test_deps
 	@printf "[*] Building 64-bit variant of the runtime (-m64)... "
-	@$(CC) $(CFLAGS) -m64 -fPIC -c $< -o $@ 2>/dev/null; if [ "$$?" = "0" ]; then echo "success!"; else echo "failed (that's fine)"; fi
+	@$(XCC) $(CFLAGS) $(XCCFLAGS) -m64 -fPIC -c $< -o $@ 2>/dev/null; if [ "$$?" = "0" ]; then echo "success!"; else echo "failed (that's fine)"; fi
 
 test_build: $(PROGS)
 	@echo "[*] Testing the CC wrapper and instrumentation output..."
-	unset AFL_USE_ASAN AFL_USE_MSAN AFL_INST_RATIO; AFL_QUIET=1 AFL_PATH=. AFL_CC=$(CC) ../afl-clang-fast $(CFLAGS) ../test-instr.c -o test-instr $(LDFLAGS)
+	unset AFL_USE_ASAN AFL_USE_MSAN AFL_INST_RATIO; AFL_QUIET=1 AFL_PATH=. AFL_CC=$(XCC) ../afl-clang-fast $(XCCFLAGS) $(CFLAGS) ../test-instr.c -o test-instr $(LDFLAGS)
 	echo 0 | ../afl-showmap -m none -q -o .test-instr0 ./test-instr
 	echo 1 | ../afl-showmap -m none -q -o .test-instr1 ./test-instr
 	@rm -f test-instr
