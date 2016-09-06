@@ -1,0 +1,73 @@
+AFL for CHERI
+=============
+
+This version of AFL has been modified to support cross-compilation and to work
+with CHERIBSD.
+
+There are four relevant parts to AFL:
+
+ - The LLVM plugin, which adds instrumentation to the binary.
+ - The clang wrapper, which passes the correct flags to the compiler.
+ - The fuzzing driver (`afl-fuzz`), which spawns the process and provides it
+   with input.
+ - The runtime library, which communicates with the driver from within the
+   process.
+
+This fork has been modified so that the LLVM plugin generates correct code for
+CHERIABI, so that the runtime and driver communicate via anonymous POSIX shared
+memory (rather than SysV shared memory), and so that the build system
+understands the concept of cross-compiling.
+
+Installing
+----------
+
+To build, you must already have the CHERI ADK set up.  
+
+	$ export SDK_PATH=/path/to/cheri/sdk
+	$ XCC=${SDK_PATH}/bin/clang XCCFLAGS='-cheri-linker -target mips64-unknown-freebsd -mcpu=mips3 -integrated-as  -msoft-float' gmake
+	$ cd llvm
+	$ LLVM_CONFIG=${SDK_PATH}/llvm-config XCC=${SDK_PATH}/bin/clang XCCFLAGS='-cheri-linker -mabi=sandbox -msoft-float' gmake
+
+You will now have an `afl-fuzz` that you can copy to the target system and an
+`afl-clang-fast` that you can use for cross compiling.
+
+Using
+-----
+
+To test that everything is working, begin with a simple C program with an obvious bug:
+
+```C
+#include <stdio.h>
+
+int main(void)
+{
+        char foo[10];
+        gets(foo);
+        puts(foo);
+}
+```
+
+Compile this much as you would any other program:
+
+	$ afl-clang-fast -static -g overflow.c -cheri-linker -mabi=sandbox -o overflow
+
+Copy the resulting `overflow` binary and the `afl-fuzz` binary to your CHERI
+system.  On that system, create two directories, one for the input and one for
+the output, and create a simple test input:
+
+	$ mkdir in
+	$ mkdir out
+	$ echo foo > in/foo
+
+Now try running the fuzzer:
+
+	$ ./afl-fuzz -i in -o out -t 100000 ./overflow
+
+After a little while, it will find a test case that causes a crash.  Note that
+we had to increase the timeout quite a lot from the default.  This is partly
+because CHERI on FPGA (or QEMU) is much slower than a typical x86-64 system
+(where the default originated).  When a program crashes because of a CHERI
+fault, the kernel will print the register set to the console.  This is very
+useful for debugging, but takes a lot longer than AFL expects a program to run
+for and so it miscategorises these as hangs, rather than crashes, with a
+shorter timeout.
