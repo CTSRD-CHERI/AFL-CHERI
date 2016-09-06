@@ -184,7 +184,7 @@
 
 /* UI refresh frequency (Hz): */
 
-#define UI_TARGET_HZ        5
+#define UI_TARGET_HZ        0.2
 
 /* Fuzzer stats file and plot update intervals (sec): */
 
