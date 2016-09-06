@@ -54,6 +54,9 @@ static u8 is_persistent;
 
 static void __afl_map_shm(void) {
 
+  // Get the environment variable in both paths, even though we only use it in
+  // one, because afl-fuzz looks for this string in the binary to check that
+  // it's been instrumented.
   u8 *id_str = getenv(SHM_ENV_VAR);
 
   /* If we're running under AFL, attach to the appropriate region, replacing the
@@ -62,6 +65,13 @@ static void __afl_map_shm(void) {
 
   if (id_str) {
 
+#ifdef SHM_ANON
+  __afl_area_ptr = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, FORKSRV_FD + 2, 0);
+  if (__afl_area_ptr == MAP_FAILED)
+  {
+    _exit(1);
+  }
+#else
     u32 shm_id = atoi(id_str);
 
     __afl_area_ptr = shmat(shm_id, NULL, 0);
@@ -69,6 +79,7 @@ static void __afl_map_shm(void) {
     /* Whooooops. */
 
     if (__afl_area_ptr == (void *)-1) _exit(1);
+#endif
 
     /* Write something into the bitmap so that even with low AFL_INST_RATIO,
        our parent doesn't give up on us. */

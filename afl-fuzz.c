@@ -1342,6 +1342,16 @@ EXP_ST void setup_shm(void) {
   memset(virgin_hang, 255, MAP_SIZE);
   memset(virgin_crash, 255, MAP_SIZE);
 
+#ifdef SHM_ANON
+  int memfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0606);
+  if (memfd < 0) PFATAL("shm_open() failed");
+  ftruncate(memfd, MAP_SIZE);
+  trace_bits = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, memfd, 0);
+  if (trace_bits == MAP_FAILED) PFATAL("shmat() failed");
+  dup2(memfd, FORKSRV_FD + 2);
+  close(memfd);
+  shm_str = "POSIX anonymous shared memory";
+#else
   shm_id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
 
   if (shm_id < 0) PFATAL("shmget() failed");
@@ -1350,19 +1360,19 @@ EXP_ST void setup_shm(void) {
 
   shm_str = alloc_printf("%d", shm_id);
 
+  ck_free(shm_str);
+
+  trace_bits = shmat(shm_id, NULL, 0);
+  
+  if (!trace_bits) PFATAL("shmat() failed");
+#endif
+
   /* If somebody is asking us to fuzz instrumented binaries in dumb mode,
      we don't want them to detect instrumentation, since we won't be sending
      fork server commands. This should be replaced with better auto-detection
      later on, perhaps? */
 
   if (!dumb_mode) setenv(SHM_ENV_VAR, shm_str, 1);
-
-  ck_free(shm_str);
-
-  trace_bits = shmat(shm_id, NULL, 0);
-  
-  if (!trace_bits) PFATAL("shmat() failed");
-
 }
 
 
@@ -1989,9 +1999,9 @@ EXP_ST void init_forkserver(char** argv) {
     /* Umpf. On OpenBSD, the default fd limit for root users is set to
        soft 128. Let's try to fix that... */
 
-    if (!getrlimit(RLIMIT_NOFILE, &r) && r.rlim_cur < FORKSRV_FD + 2) {
+    if (!getrlimit(RLIMIT_NOFILE, &r) && r.rlim_cur < FORKSRV_FD + 3) {
 
-      r.rlim_cur = FORKSRV_FD + 2;
+      r.rlim_cur = FORKSRV_FD + 3;
       setrlimit(RLIMIT_NOFILE, &r); /* Ignore errors */
 
     }
