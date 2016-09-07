@@ -25,8 +25,8 @@ To build, you must already have the CHERI ADK set up.
 
 	$ export SDK_PATH=/path/to/cheri/sdk
 	$ XCC=${SDK_PATH}/bin/clang XCCFLAGS='-cheri-linker -target mips64-unknown-freebsd -mcpu=mips3 -integrated-as  -msoft-float' gmake
-	$ cd llvm
-	$ LLVM_CONFIG=${SDK_PATH}/llvm-config XCC=${SDK_PATH}/bin/clang XCCFLAGS='-cheri-linker -mabi=sandbox -msoft-float' gmake
+	$ cd llvm_mode
+	$ LLVM_CONFIG=${SDK_PATH}/bin/llvm-config XCC=${SDK_PATH}/bin/clang XCCFLAGS='-cheri-linker -mabi=sandbox -msoft-float' gmake
 
 You will now have an `afl-fuzz` that you can copy to the target system and an
 `afl-clang-fast` that you can use for cross compiling.
