@@ -96,9 +96,9 @@ endif
 	@$(XCC) $(CFLAGS) $(XCFLAGS) -m64 -fPIC -c $< -o $@ 2>/dev/null; if [ "$$?" = "0" ]; then echo "success!"; else echo "failed (that's fine)"; fi
 
 test_build: $(PROGS)
-ifeq ($(CC),$(CXX))
 	@echo "[*] Testing the CC wrapper and instrumentation output..."
 	unset AFL_USE_ASAN AFL_USE_MSAN AFL_INST_RATIO; AFL_QUIET=1 AFL_PATH=. AFL_CC=$(XCC) ../afl-clang-fast $(XCFLAGS) $(CFLAGS) ../test-instr.c -o test-instr $(LDFLAGS)
+ifeq ($(CC),$(CXX))
 	echo 0 | ../afl-showmap -m none -q -o .test-instr0 ./test-instr
 	echo 1 | ../afl-showmap -m none -q -o .test-instr1 ./test-instr
 	@rm -f test-instr
